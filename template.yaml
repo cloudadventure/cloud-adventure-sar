@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Cloud Adventure: Race to Cloud Castle!
+
+Globals:
+  Function:
+    Timeout: 3
+
+Resources:
+  LambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: function/
+      Handler: handler.lambda_handler
+      Runtime: python3.8
+      Environment:
+        Variables:
+          SNS_ARN: !Ref SnsTopic 
+          KMS_KEY_ID: !Ref KmsKey
+      Policies:
+        - SNSCrudPolicy:
+            TopicName: !GetAtt SnsTopic.TopicName
+        - Statement:
+          - Sid: KMSEncryptPolicy
+            Effect: Allow
+            Action:
+              - kms:GenerateDataKey
+              - kms:Decrypt
+              - kms:Encrypt
+            Resource: '*'
+      Events:
+        help:
+          Type: Api
+          Properties:
+            Path: /help
+            Method: get
+        gong:
+          Type: Api
+          Properties:
+            Path: /gong
+            Method: post
+
+  SnsTopic:
+    Type: AWS::SNS::Topic
+    Properties: 
+      DisplayName: CloudAdventureTopic
+      KmsMasterKeyId: !Ref KmsKey
+      TopicName: CloudAdventureTopic
+  
+  KmsKey:
+    Type: AWS::KMS::Key
+    Properties: 
+      Description: A key to unlock an encrypted message...
+      Enabled: True
+      KeyPolicy:
+        Version: 2012-10-17
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal: 
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: kms:*
+            Resource: "*"
